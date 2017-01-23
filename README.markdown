@@ -1,34 +1,29 @@
 #COMMA
 
-http://github.com/crafterm/comma
+http://github.com/comma-csv/comma
+
+[![Gem Version](https://badge.fury.io/rb/comma.png)](http://badge.fury.io/rb/comma)
 
 ##COMPATIBILITY
 The mainline of this project builds gems to the 3.x version series, and is compatible and tested with :
 
-* Ruby 1.8.7, 1.9.2, 1.9.3
-* REE 1.8.7
-* RBX 1.8
-* Rails 3.x (all versions)
+* Ruby 2.x
+* Rails 4.x, 5.0 (with ActiveRecord, DataMapper and Mongoid support)
 
-[![Build Status](https://secure.travis-ci.org/crafterm/comma.png)](http://travis-ci.org/crafterm/comma)
-
-###LOOKING FOR RAILS 2?
-*   Rails 2 is supported in the 'rails2' branch of this project, and versioned in the 2.x version of this gem. (https://github.com/crafterm/comma/tree/rails2).
-
-##INSTALLATION
+[![Build Status](https://travis-ci.org/comma-csv/comma.png?branch=master)](https://travis-ci.org/comma-csv/comma) [![Code Climate](https://codeclimate.com/github/comma-csv/comma.png)](https://codeclimate.com/github/comma-csv/comma)
 
 Comma is distributed as a gem, best installed via Bundler.
 
 Include the gem in your Gemfile:
 
 ```Ruby
-  gem "comma", "~> 3.0"
+  gem "comma", "~> 4.0.0"
 ```
 
 Or, if you want to live life on the edge, you can get master from the main comma repository:
 
 ```Ruby
-  gem "comma",  :git => "git://github.com/crafterm/comma.git"
+  gem "comma",  :git => "git://github.com/comma-csv/comma.git"
 ```
 
 ##DESCRIPTION:
@@ -225,7 +220,48 @@ In the preceding example, the 2 new fields added (both based on the publisher re
 *   the first example 'publishers_contact' is loaded straight as a block. The value returned by the lambda is displayed with a header value of 'Publisher'
 *   the second example 'total_publishers_users' is sent via a hash and a custom label is set, if used in the first examples method the header would be 'Publisher', but sent as a hash the header is 'Number of publisher users'.
 
-###USING WITH RAILS
+##Using special fields
+
+###\_\_use\_\_
+
+With `__use__` field, you can reuse output formats that are defined in
+the same class. In the example below, default format (`:default`)
+includes `:minimum` format when `#to_comma` is called.
+
+```ruby
+ class Book < ActiveRecord::Base
+   comma do
+     __use__ :minimum
+
+     description
+
+     isbn :number_10 => 'ISBN-10', :number_13 => 'ISBN-13'
+   end
+
+   comma :minimum do
+     name
+   end
+ end
+```
+
+###\_\_static_column\_\_
+
+When you want to have static value in your CSV output, you can use
+`__static__` field. You can provide values to output to blocks.
+Without block, field will become empty.
+
+```ruby
+ class Book < ActiveRecord::Base
+   comma do
+     __static_column__ 'Check' do ' ' end
+     name
+     __static_column__ 'Spacer'
+     description
+   end
+ end
+```
+
+##USING WITH RAILS
 
 When used with Rails (ie. add 'comma' as a gem dependency), Comma automatically adds support for rendering CSV output in your controllers:
 
@@ -311,14 +347,7 @@ To run the test suite across multiple gem file sets, we're using [Appraisal](htt
 ```Bash
 
 bundle install
-bundle exec rake appraisal:install
-bundle exec rake appraisal spec
+bundle exec appraisal install
+bundle exec appraisal rake spec
 
 ```
-
-When rebuilding for a new rails version, to test across controller and the stack itself, a fake rails app must be generated :
-
-```
-rails plugin new rails_app --full --dummy-path=spec/dummy --skip-bundle --skip-gemspec --skip-test-unit --skip-sprockets --skip-javascript --skip-gemfile --skip-git
-```
-

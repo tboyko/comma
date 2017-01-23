@@ -24,23 +24,45 @@ module Comma
     }
 end
 
-require 'active_support/core_ext/class/attribute'
-require 'active_support/core_ext/module/delegation'
-require 'comma/relation' if defined?(ActiveRecord::Relation)
+require 'active_support/lazy_load_hooks'
+ActiveSupport.on_load(:active_record) do
+  require 'comma/relation' if defined?(ActiveRecord::Relation)
+end
 
-require 'comma/extractors'
+ActiveSupport.on_load(:mongoid) do
+  require 'comma/mongoid'
+end
+
+require 'comma/data_mapper_collection' if defined? DataMapper
+
 require 'comma/generator'
 require 'comma/array'
 require 'comma/object'
 
 #Load into Rails controllers
-if defined?(ActionController::Renderers) && ActionController::Renderers.respond_to?(:add)
-  ActionController::Renderers.add :csv do |obj, options|
-    filename    = options[:filename]  || 'data'
-    extension   = options[:extension] || 'csv'
-    mime_type   = options[:mime_type] || Mime::CSV
-    #Capture any CSV optional settings passed to comma or comma specific options
-    csv_options = options.slice(*CSV_HANDLER::DEFAULT_OPTIONS.merge(Comma::DEFAULT_OPTIONS).keys)
-    send_data obj.to_comma(csv_options), :type => mime_type, :disposition => "attachment; filename=#{filename}.#{extension}"
+ActiveSupport.on_load(:action_controller) do
+  if defined?(ActionController::Renderers) && ActionController::Renderers.respond_to?(:add)
+    ActionController::Renderers.add :csv do |obj, options|
+      filename    = options[:filename]  || 'data'
+      extension   = options[:extension] || 'csv'
+
+      if Rails.version >= "5.0.0"
+        mime_type   = options[:mime_type] || Mime[:csv]
+      else
+        mime_type   = options[:mime_type] || Mime::CSV
+      end
+
+      #Capture any CSV optional settings passed to comma or comma specific options
+      csv_options = options.slice(*CSV_HANDLER::DEFAULT_OPTIONS.merge(Comma::DEFAULT_OPTIONS).keys).each_with_object({}) do |(k, v), h|
+        # XXX: Convert string to boolean
+        h[k] = case k
+        when :write_headers
+          v = (v != 'false') if v.is_a?(String)
+        else
+          v
+        end
+      end
+      send_data obj.to_comma(csv_options), :type => mime_type, :disposition => "attachment; filename=\"#{filename}.#{extension}\""
+    end
   end
 end

@@ -1,14 +1,14 @@
 require 'spec_helper'
 
-if defined?(ActionController) && defined?(Rails)
+if defined?(Rails)
 
-  describe UsersController do
+  RSpec.describe UsersController, type: :controller do
 
     describe "rails setup" do
 
       it 'should capture the CSV renderer provided by Rails' do
         mock_users = [mock_model(User), mock_model(User)]
-        User.stub!(:all).and_return(mock_users)
+        allow(User).to receive(:all).and_return(mock_users)
 
         mock_users.should_receive(:to_comma).once
 
@@ -18,7 +18,7 @@ if defined?(ActionController) && defined?(Rails)
     end
 
     describe "controller" do
-      before(:each) do
+      before(:all) do
         @user_1 = User.create!(:first_name => 'Fred', :last_name => 'Flintstone')
         @user_2 = User.create!(:first_name => 'Wilma', :last_name => 'Flintstone')
       end
@@ -36,7 +36,7 @@ if defined?(ActionController) && defined?(Rails)
 
         response.status.should            == 200
         response.content_type.should      == 'text/csv'
-        response.header["Content-Disposition"].should include('filename=data.csv')
+        response.header["Content-Disposition"].should include('filename="data.csv"')
 
         expected_content =<<-CSV.gsub(/^\s+/,'')
         First name,Last name,Name
@@ -73,7 +73,20 @@ if defined?(ActionController) && defined?(Rails)
 
           response.status.should            == 200
           response.content_type.should      == 'text/csv'
-          response.header["Content-Disposition"].should include('filename=my_custom_name.csv')
+          response.header["Content-Disposition"].should include('filename="my_custom_name.csv"')
+        end
+
+        it "should allow a custom filename with spaces" do
+          require 'shellwords'
+          get :with_custom_options, :format => :csv, :custom_options => { :filename => 'filename with a lot of spaces' }
+
+          response.status.should            == 200
+          response.content_type.should      == 'text/csv'
+          response.header["Content-Disposition"].should include('filename="filename with a lot of spaces.csv"')
+
+          filename_string = response.header["Content-Disposition"].split('=').last
+          # shellsplit honors quoted strings
+          filename_string.shellsplit.length.should == 1
         end
 
         it 'should allow a file extension to be set' do
@@ -81,7 +94,7 @@ if defined?(ActionController) && defined?(Rails)
 
           response.status.should            == 200
           response.content_type.should      == 'text/csv'
-          response.header["Content-Disposition"].should include('filename=data.txt')
+          response.header["Content-Disposition"].should include('filename="data.txt"')
         end
 
         it 'should allow mime type to be set' do

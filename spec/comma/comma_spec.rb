@@ -14,6 +14,19 @@ describe Comma do
     Object.should respond_to(:to_comma_headers)
   end
 
+  describe '.to_comma_header' do
+    it 'should not crash (#94)' do
+      klass = Class.new
+      klass.instance_eval do
+        attr_accessor :name
+
+        comma :brief do
+          name
+        end
+      end
+      expect { klass.to_comma_headers(:brief) }.to_not raise_error
+    end
+  end
 end
 
 describe Comma, 'generating CSV' do
@@ -224,4 +237,65 @@ describe Comma, 'to_comma data/headers object extensions' do
 
   end
 
+  describe 'on objects using Single Table Inheritance' do
+
+    before do
+      class MySuperClass
+        attr_accessor :content
+        comma do; content end
+
+        def initialize(content)
+          @content = 'super-' + content
+        end
+      end
+
+      class ChildClassComma < MySuperClass
+        comma do; content end
+
+        def initialize(content)
+          @content = 'sub-' + content
+        end
+      end
+
+      class ChildClassNoComma < MySuperClass
+      end
+
+      @childComma = ChildClassComma.new('content')
+      @childNoComma = ChildClassNoComma.new('content')
+    end
+
+    it 'should return and array of data content, as defined in comma block in child class' do
+      @childComma.to_comma.should == %w(sub-content)
+    end
+
+    it 'should return and array of data content, as defined in comma block in super class, if not present in child' do
+      @childNoComma.to_comma.should == %w(super-content)
+    end
+
+  end
+
+end
+
+describe Comma, '__use__ keyword' do
+  before(:all) do
+    @obj = Class.new(Struct.new(:id, :title, :description)) do
+      comma do
+        title
+        __use__ :description
+      end
+
+      comma :description do
+        __use__ :static
+        description
+      end
+
+      comma :static do
+        __static_column__ do 'Foo, Inc.' end
+      end
+    end.new(1, 'Programming Ruby', 'The Pickaxe book')
+  end
+
+  subject { @obj.to_comma }
+  its(:size) { should eq(3) }
+  it { should eq(['Programming Ruby', 'Foo, Inc.', 'The Pickaxe book']) }
 end
