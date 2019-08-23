@@ -1,4 +1,5 @@
-# -*- coding: utf-8 -*-
+# frozen_string_literal: true
+
 require 'comma/data_extractor'
 require 'comma/header_extractor'
 
@@ -32,6 +33,8 @@ class Object
   end
 
   def raise_unless_style_exists(style)
-    raise "No comma format for class #{self.class} defined for style #{style}" unless self.comma_formats && self.comma_formats[style]
+    return if self.comma_formats && self.comma_formats[style]
+
+    raise "No comma format for class #{self.class} defined for style #{style}"
   end
 end
